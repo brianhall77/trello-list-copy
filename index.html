@@ -1,0 +1,213 @@
+<html>
+  <head>
+    <title>Emily's Trello List Copier</title>
+    <link rel="stylesheet" media="screen" href="bootstrap.min.css">
+  </head>
+  <body>
+    <h1>Emily's Trello List Copier</h1>
+    <div class="container">
+      <form class="form-horizontal" id="boards_form">
+        <div class="form-group">
+          <label class="control-label">Step 1: Choose a board to copy from</label>
+            <select class="form-control" id="boards"></select>
+        </div>
+      </form>
+      
+      <div id="lists"></div>
+      <div id="actions"></div>
+    </div>
+  </body>
+
+  <script src="https://code.jquery.com/jquery-1.11.3.min.js" type="text/javascript"></script>
+  <script src="https://api.trello.com/1/client.js?key=88be7e495d721e94de369ddfacb8734e"></script>
+  
+  <script type="text/javascript">
+    // Clear UI and reload boards
+    function resetPage() {
+      $('#lists').empty();
+      $('#actions').empty();
+    
+      // Authorize on startup and then load boards
+      Trello.authorize({
+        type: "popup",
+        name: "Trello Card Copy",
+        scope: {
+          read: true,
+          write: false },
+        expiration: "never",
+        success: loadBoards,
+        error: function() { console.log("Failed authentication"); }
+      });
+    }
+
+    // Callback when boards have been loaded
+    function loadedBoards(boards) {
+      $('#boards').empty();
+      $('#boards')
+        .append($("<option></option>")
+        .attr("value", "")
+        .text("---"));
+      $.each(boards, function(index, value) {
+        if (!value.closed) {
+          $('#boards')
+            .append($("<option></option>")
+            .attr("value",value.id)
+            .text(value.name));
+        }
+      });
+      
+      // Set 'boards' change callback
+      $('#boards').change(function() {
+        var boardId = $("option:selected", this).val();
+        loadLists(boards, boardId);
+      });
+    }
+    
+    // Load boards from Trello
+    function loadBoards() {
+      //Get the users boards
+      Trello.get(
+        '/members/me/boards/',
+        loadedBoards,
+        function() { console.log("Failed to load boards"); resetPage();}
+      );
+    }
+    
+    // Callback when lists have been loaded
+    function loadedLists(boards, boardId, lists) {
+      $('#lists').append($("<p></p>").text("Copying from board id: " +
+                                           boardId));
+      var listSelect =
+        '<form class="form-horizontal" id="lists_form">' +
+        '  <div class="form-group">' +
+        '    <label class="control-label">' +
+        '      Step 2: Choose a list to copy' + 
+        '    </label>' +
+        '    <select class="form-control" id="lists-select"></select>' +
+        '  </div>' +
+        '</form>';
+      $('#lists').append(listSelect);
+      $('#lists-select')
+        .append($("<option></option>")
+        .attr("value", "")
+        .text("---"));
+      $.each(lists, function(index, value) {
+        $('#lists-select')
+          .append($("<option></option>")
+          .attr("value",value.id)
+          .text(value.name));
+      });
+      $('#lists-select').change(function() {
+        var listId = $("option:selected", this).val();
+        var listName = $("option:selected", this).text();
+        buildActionUI(boards, boardId, listName, listId);
+      });
+    }
+    
+    function copyListToSelectedBoards(listName, listId) {
+      $('#copy-card').prop("disabled", true);
+
+      var checkboxes = $('#board-checkboxes');
+      checkboxes.children('input').each(function() {
+        if ($(this).prop("checked")) {
+          $('#actions').append($("<div></div>")
+              .text("Copying to " + $(this).attr("name")));
+          var newList = {
+            "name":listName,
+            "idBoard":$(this).attr("id"),
+            "idListSource":listId};
+//pos (optional)
+//Default: top
+//Valid Values: A position. top, bottom, or a positive number.
+          Trello.post('/lists/', newList);
+        }
+      });
+      
+      $('#actions').append($("<div></div>")
+          .text("Done. I hope that worked!"));
+    }
+    
+    function copyLastCardToOtherLists(lists, listId, cards) {
+      
+    }
+        
+    // Show list of other boards to copy list to and available actions
+    function buildActionUI(boards, boardId, listName, listId) {
+      $('#actions').append($("<p></p>").text("Copying from list id: " + listId));
+
+      var actionUI =
+        '<form class="form-horizontal" id="action_ui">' +
+        '  <div class="form-group">' +
+        '    <label class="control-label">' +
+        '      Step 3: Select boards and copy:' +
+        '    </label><br/>' +
+        '    <button type="button" class="form-button" id="select-all">' +
+        '      Select all' +
+        '    </button>' +
+        '    <button type="button" class="form-button" id="unselect-all">' +
+        '      Unselect all' +
+        '    </button>' +
+        '    <br/>' +
+        '    <div id="board-checkboxes"></div>' +
+        '    <button type="button" class="form-button" id="copy-list">' +
+        '      Copy list to selected boards' +
+        '    </button>' +
+        '    <button type="button" class="form-button" id="reset-page">' +
+        '      Start over' +
+        '    </button>' +
+        '  </div>' +
+        '</form>';
+      $('#actions').append(actionUI);
+      
+      $.each(boards, function(index, value) {
+        if (value.id != boardId && !value.closed) {
+          console.log("ADDING " + index + ": " + value.id + ", " + value.name);
+          $('#board-checkboxes')
+            .append($("<input></input>")
+            .attr("type", "checkbox")
+            .attr("id", value.id)
+            .attr("name", value.name)
+            .prop("checked", true));
+          $('#board-checkboxes')
+            .append($("<label></label>")
+            .attr("for", value.id)
+            .text(value.name));
+          $('#board-checkboxes')
+            .append($("<br/>"));
+        }
+      });
+      $('#select-all').click(function() {
+        var checkboxes = $('#board-checkboxes');
+        checkboxes.children().each(function() {
+            $(this).prop("checked", true);
+        });
+      });
+      $('#unselect-all').click(function() {
+        var checkboxes = $('#board-checkboxes');
+        checkboxes.children().each(function() {
+            $(this).removeProp("checked");
+        });
+      });
+      $('#copy-list').click(function() {
+        copyListToSelectedBoards(listName, listId);
+      });
+      $('#reset-page').click(function() {
+        resetPage();
+      });
+    }
+    
+    // Load lists for selected board
+    function loadLists(boards, boardId) {
+      $('#lists').empty();
+      $('#actions').empty();
+      Trello.get(
+        '/boards/' + boardId + '/lists',
+        function(lists) { loadedLists(boards, boardId, lists); },
+        function() { console.log("Failed to load lists"); resetPage();}
+      );
+    }
+        
+    // Clear and reload boards on startup
+    resetPage();
+  </script>
+</html>
