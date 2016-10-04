@@ -33,7 +33,7 @@
         name: "Trello Card Copy",
         scope: {
           read: true,
-          write: false },
+          write: true },
         expiration: "never",
         success: loadBoards,
         error: function() { console.log("Failed authentication"); }
@@ -111,26 +111,25 @@
       checkboxes.children('input').each(function() {
         if ($(this).prop("checked")) {
           $('#actions').append($("<div></div>")
-              .text("Copying to " + $(this).attr("name")));
+              .text("Starting copy to '" + $(this).attr("name") + "'..."));
           var newList = {
             "name":listName,
             "idBoard":$(this).attr("id"),
             "idListSource":listId};
-//pos (optional)
-//Default: top
-//Valid Values: A position. top, bottom, or a positive number.
-          Trello.post('/lists/', newList);
+          var boardName = $(this).attr("name");
+          Trello.post('/lists/', newList,
+            function(data) {
+                $('#actions').append($("<div></div>")
+                    .text("Successfully copied list to '" + boardName + "'."));
+            },
+            function(data) {
+                $('#actions').append($("<div></div>")
+                    .text("Error copying list to '" + boardName + "': " + data.responseText));
+            });
         }
       });
-      
-      $('#actions').append($("<div></div>")
-          .text("Done. I hope that worked!"));
     }
     
-    function copyLastCardToOtherLists(lists, listId, cards) {
-      
-    }
-        
     // Show list of other boards to copy list to and available actions
     function buildActionUI(boards, boardId, listName, listId) {
       $('#actions').append($("<p></p>").text("Copying from list id: " + listId));
