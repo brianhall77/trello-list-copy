@@ -57,6 +57,7 @@
       });
       
       // Set 'boards' change callback
+      $('#boards').off("change");
       $('#boards').change(function() {
         var boardId = $("option:selected", this).val();
         loadLists(boards, boardId);
@@ -78,7 +79,7 @@
       $('#lists').append($("<p></p>").text("Copying from board id: " +
                                            boardId));
       var listSelect =
-        '<form class="form-horizontal" id="lists_form">' +
+        '<form class="form-horizontal" id="lists-form">' +
         '  <div class="form-group">' +
         '    <label class="control-label">' +
         '      Step 2: Choose a list to copy' + 
@@ -135,7 +136,7 @@
       $('#actions').append($("<p></p>").text("Copying from list id: " + listId));
 
       var actionUI =
-        '<form class="form-horizontal" id="action_ui">' +
+        '<form class="form-horizontal" id="action-ui">' +
         '  <div class="form-group">' +
         '    <label class="control-label">' +
         '      Step 3: Select boards and copy:' +
@@ -160,7 +161,6 @@
       
       $.each(boards, function(index, value) {
         if (value.id != boardId && !value.closed) {
-          console.log("ADDING " + index + ": " + value.id + ", " + value.name);
           $('#board-checkboxes')
             .append($("<input></input>")
             .attr("type", "checkbox")
